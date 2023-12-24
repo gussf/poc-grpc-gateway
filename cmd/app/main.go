@@ -11,8 +11,10 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/gussf/poc-grpc-gateway/handlers"
+	middlewares "github.com/gussf/poc-grpc-gateway/middlewares/grpc"
 	v1 "github.com/gussf/poc-grpc-gateway/proto/gen/go"
 	"github.com/oklog/run"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -25,7 +27,9 @@ var (
 
 func newGRPCServer() *grpc.Server {
 	grpcSrv := grpc.NewServer(
-		grpc.ChainUnaryInterceptor(),
+		grpc.ChainUnaryInterceptor(
+			middlewares.HttpMetricsInterceptor(),
+		),
 	)
 
 	v1.RegisterEchoerServer(grpcSrv, handlers.NewEchoerHandler())
@@ -83,9 +87,7 @@ func main() {
 	metricsSrv := gin.New()
 	g.Add(func() error {
 		log.Println("starting metrics on", *metricsEndpoint)
-		metricsSrv.GET("/metrics", func(ctx *gin.Context) {
-			ctx.Writer.WriteHeader(200)
-		})
+		metricsSrv.GET("/metrics", gin.WrapH(promhttp.Handler()))
 		return metricsSrv.Run(*metricsEndpoint)
 	}, func(error) {
 	})
