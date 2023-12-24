@@ -1,0 +1,23 @@
+ syntax = "proto3";
+ package echo.v1;
+ option go_package = "github.com/gussf/proto/gen/go/v1";
+ import "google/api/annotations.proto";
+ 
+ message StringMessage {
+   string value = 1;
+ }
+
+ service Echoer {
+   rpc PostEcho(StringMessage) returns (StringMessage) {
+    option (google.api.http) = {
+        post: "/v1/echo"
+        body: "*"
+    };
+   }
+   rpc GetEcho(StringMessage) returns (StringMessage) {
+    option (google.api.http) = {
+        get: "/v1/echo/{value}"
+    };
+   }
+
+ }
