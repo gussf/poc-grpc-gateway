@@ -9,7 +9,7 @@ type APIMetrics struct {
 	Requests *prometheus.HistogramVec
 }
 
-func newAPIMetrics() APIMetrics {
+func NewAPIMetrics() APIMetrics {
 	return APIMetrics{
 		Requests: promauto.NewHistogramVec(
 			prometheus.HistogramOpts{

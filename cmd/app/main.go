@@ -15,6 +15,8 @@ import (
 	v1 "github.com/gussf/poc-grpc-gateway/proto/gen/go"
 	"github.com/oklog/run"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -25,14 +27,14 @@ var (
 	metricsEndpoint    = flag.String("metrics-endpoint", "localhost:9080", "metric scraping endpoint")
 )
 
-func newGRPCServer() *grpc.Server {
+func newGRPCServer(handler handlers.Echoer) *grpc.Server {
 	grpcSrv := grpc.NewServer(
 		grpc.ChainUnaryInterceptor(
 			middlewares.HttpMetricsInterceptor(),
 		),
 	)
 
-	v1.RegisterEchoerServer(grpcSrv, handlers.NewEchoerHandler())
+	v1.RegisterEchoerServer(grpcSrv, handler)
 	return grpcSrv
 }
 
@@ -52,8 +54,21 @@ func registerGRPCGateway(ctx context.Context, mux *runtime.ServeMux) {
 func main() {
 	ctx := context.Background()
 
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI("mongodb://root:root@0.0.0.0:27017"))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer func() {
+		if err = client.Disconnect(ctx); err != nil {
+			log.Fatal(err)
+		}
+	}()
+
+	handler := handlers.NewEchoerHandler(client)
+
 	// Serve gRPC server
-	grpcServer := newGRPCServer()
+	grpcServer := newGRPCServer(handler)
 	g := &run.Group{}
 	g.Add(func() error {
 		l, err := net.Listen("tcp", *grpcServerEndpoint)
